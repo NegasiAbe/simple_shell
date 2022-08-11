@@ -102,7 +102,6 @@ char *fill_path_dir(char *path)
 	}
 	return (path_copy);
 }
-
 /**
  * get_path_dir - Tokenizes a colon-separated list of
  *                directories into a list_s linked list.
