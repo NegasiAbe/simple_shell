@@ -1,133 +1,135 @@
-#include "shell.h"
-
-int shellby_env(char **args, char __attribute__((__unused__)) **front);
-int shellby_setenv(char **args, char __attribute__((__unused__)) **front);
-int shellby_unsetenv(char **args, char __attribute__((__unused__)) **front);
-
+#include "main.h"
 /**
- * shellby_env - Prints the current environment.
- * @args: An array of arguments passed to the shell.
- * @front: A double pointer to the beginning of args.
- *
- * Return: If an error occurs - -1.
- *	   Otherwise - 0.
- *
- * Description: Prints one variable per line in the
- *              format 'variable'='value'.
+ * printenv - Prints out all the environment variables
  */
-int shellby_env(char **args, char __attribute__((__unused__)) **front)
+void printenv(void)
 {
-	int index;
-	char nc = '\n';
+	int i = 0;
 
-	if (!environ)
-		return (-1);
-
-	for (index = 0; environ[index]; index++)
+	while (environ[i])
 	{
-		write(STDOUT_FILENO, environ[index], _strlen(environ[index]));
-		write(STDOUT_FILENO, &nc, 1);
+		write(1, environ[i], _strlen(environ[i]));
+		write(1, "\n", 1);
+		i++;
 	}
-
-	(void)args;
-	return (0);
 }
-
 /**
- * shellby_setenv - Changes or adds an environmental variable to the PATH.
- * @args: An array of arguments passed to the shell.
- * @front: A double pointer to the beginning of args.
- * Description: args[1] is the name of the new or existing PATH variable.
- *              args[2] is the value to set the new or changed variable to.
+ * _unsetenv - deletes the variable name from the environment
+ * @name: the name of the variable
  *
- * Return: If an error occurs - -1.
- *         Otherwise - 0.
+ * Return: 0 on success or -1 on error
  */
-int shellby_setenv(char **args, char __attribute__((__unused__)) **front)
+int _unsetenv(char *name)
 {
-	char **env_var = NULL, **new_environ, *new_value;
-	size_t size;
-	int index;
+	size_t len = 0;
+	int i = 0, flag = 0;
 
-	if (!args[0] || !args[1])
-		return (create_error(args, -1));
-
-	new_value = malloc(_strlen(args[0]) + 1 + _strlen(args[1]) + 1);
-	if (!new_value)
-		return (create_error(args, -1));
-	_strcpy(new_value, args[0]);
-	_strcat(new_value, "=");
-	_strcat(new_value, args[1]);
-
-	env_var = _getenv(args[0]);
-	if (env_var)
+	len = _strlen(name);
+	while (environ[i] != NULL)
 	{
-		free(*env_var);
-		*env_var = new_value;
-		return (0);
-	}
-	for (size = 0; environ[size]; size++)
-		;
-
-	new_environ = malloc(sizeof(char *) * (size + 2));
-	if (!new_environ)
-	{
-		free(new_value);
-		return (create_error(args, -1));
-	}
-
-	for (index = 0; environ[index]; index++)
-		new_environ[index] = environ[index];
-
-	free(environ);
-	environ = new_environ;
-	environ[index] = new_value;
-	environ[index + 1] = NULL;
-
-	return (0);
-}
-
-/**
- * shellby_unsetenv - Deletes an environmental variable from the PATH.
- * @args: An array of arguments passed to the shell.
- * @front: A double pointer to the beginning of args.
- * Description: args[1] is the PATH variable to remove.
- *
- * Return: If an error occurs - -1.
- *         Otherwise - 0.
- */
-int shellby_unsetenv(char **args, char __attribute__((__unused__)) **front)
-{
-	char **env_var, **new_environ;
-	size_t size;
-	int index, index2;
-
-	if (!args[0])
-		return (create_error(args, -1));
-	env_var = _getenv(args[0]);
-	if (!env_var)
-		return (0);
-
-	for (size = 0; environ[size]; size++)
-		;
-
-	new_environ = malloc(sizeof(char *) * size);
-	if (!new_environ)
-		return (create_error(args, -1));
-
-	for (index = 0, index2 = 0; environ[index]; index++)
-	{
-		if (*env_var == environ[index])
+		if (strncmp(environ[i], name, len) == 0)
 		{
-			free(*env_var);
-			continue;
+			while (environ[i] != NULL)
+			{
+				environ[i] = environ[i + 1];
+				i++;
+			}
+			flag++;
+			break;
 		}
-		new_environ[index2] = environ[index];
-		index2++;
+		i++;
 	}
-	free(environ);
-	environ = new_environ;
-	environ[size - 1] = NULL;
+	if (flag > 0)
+		return (0);
+	return (-1);
+}
+/**
+ * _setenv - changes or adds an environment variable
+ * @name: the name of the variable
+ * @value: the value of the variable
+ * @overwrite: if the variable most be overwrited or not
+ *
+ * Return: 0 on success or -1 on error
+ */
+int _setenv(char *name, char *value, int overwrite)
+{
+	size_t len;
+	int i = 0;
 
+	len = _strlen(name);
+	while (environ[i] != NULL)
+	{
+		if ((strncmp(environ[i], name, len) == 0) && overwrite != 0)
+		{
+			if (overwrite == 2)
+			{
+				free(environ[i]);
+			}
+			environ[i] = create_variable(name, value);
+			if (!environ[i])
+				return (-1);
+			return (0);
+		}
+		i++;
+	}
+	environ[i] = create_variable(name, value);
+	if (!environ[i])
+		return (-1);
+	environ[i + 1] = NULL;
 	return (0);
+}
+/**
+ * create_variable - creates a variable
+ * @name: the name of the variable
+ * @value: the value of the variable
+ *
+ * Return: the new variable
+ */
+char *create_variable(char *name, char *value)
+{
+	char *var = NULL, *aux = NULL;
+
+	aux = str_concat(name, "=");
+	if (!aux)
+		return (NULL);
+	var = str_concat(aux, value);
+	if (!var)
+		return (NULL);
+	free(aux);
+	return (var);
+}
+/**
+ * _getenv - Uses the environ variable in order to get a variable
+ * @name: name of the variable
+ *
+ * Return: Returns the value of the variable or NULL
+ */
+char *_getenv(const char *name)
+{
+	char *token, *value, *cpy;
+	size_t i = 0;
+
+	if (!name)
+		exit(1);
+	while (environ[i] != NULL)
+	{
+		cpy = _strdup(environ[i]);
+		token = _strtok(cpy, '=');
+		if (_strcmp(name, token) == 0)
+		{
+			token = _strtok(NULL, '=');
+			value = malloc(sizeof(char) * _strlen(token) + 1);
+			if (!value)
+			{
+				free(cpy);
+				return (NULL);
+			}
+			_strcpy(value, token);
+			free(cpy);
+			break;
+		}
+		i++;
+		free(cpy);
+	}
+	return (value);
 }
